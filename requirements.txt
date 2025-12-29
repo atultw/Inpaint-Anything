@@ -1,4 +1,4 @@
-# Minimal dependencies for LaMa inpainting only
+# Minimal dependencies for LaMa inpainting inference only
 # Core dependencies
 torch>=1.8.0
 torchvision>=0.9.0
@@ -9,17 +9,17 @@ omegaconf
 
 # Image processing
 opencv-python
-
-# LaMa model dependencies (some versions pinned for compatibility)
-easydict
 scikit-image
-kornia>=0.5.0
-hydra-core>=1.1.0
-pytorch-lightning>=1.2.9
 
-# Additional utilities used by LaMa
-albumentations>=0.5.2
-tabulate
+# LaMa model dependencies
+easydict
+kornia>=0.5.0
+pytorch-lightning>=1.2.9
+pandas
+
+# Utilities
 tqdm
+
+
 
 
