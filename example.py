@@ -38,7 +38,8 @@ def example_with_circular_mask():
     
     # Remove the object (this will fail without the model checkpoint)
     try:
-        result = remove_object(image, mask, device="cpu")
+        # Device is auto-selected (CUDA if available, otherwise CPU)
+        result = remove_object(image, mask)
         Image.fromarray(result).save("output_image.png")
         print("✓ Successfully removed object!")
         print("✓ Saved result to output_image.png")

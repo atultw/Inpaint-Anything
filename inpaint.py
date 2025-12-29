@@ -14,7 +14,9 @@ import torch.nn.functional as F
 from pathlib import Path
 from omegaconf import OmegaConf
 
-# Suppress OpenMP threading warnings
+# Suppress OpenMP threading warnings and limit thread counts
+# These settings prevent threading conflicts in some environments
+# If you need multi-threading, you can modify these values or comment them out
 os.environ['OMP_NUM_THREADS'] = '1'
 os.environ['OPENBLAS_NUM_THREADS'] = '1'
 os.environ['MKL_NUM_THREADS'] = '1'
@@ -49,12 +51,25 @@ def pad_tensor_to_modulo(img, mod):
 
 def load_checkpoint(config, checkpoint_path, strict=True, map_location='cpu'):
     """Load model checkpoint from file."""
-    from saicinpainting.training.trainers.default import DefaultInpaintingTrainingModule
-    model = DefaultInpaintingTrainingModule(config)
-    state = torch.load(checkpoint_path, map_location=map_location)
-    model.load_state_dict(state['state_dict'], strict=strict)
-    model.on_load_checkpoint(state)
-    return model
+    try:
+        from saicinpainting.training.trainers.default import DefaultInpaintingTrainingModule
+        model = DefaultInpaintingTrainingModule(config)
+        state = torch.load(checkpoint_path, map_location=map_location)
+        model.load_state_dict(state['state_dict'], strict=strict)
+        model.on_load_checkpoint(state)
+        return model
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            f"Checkpoint file not found at: {checkpoint_path}\n"
+            f"Please download the big-lama model from:\n"
+            f"https://disk.yandex.ru/d/ouP6l8VJ0HpMZg\n"
+            f"and extract it to ./pretrained_models/big-lama"
+        )
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to load model checkpoint: {str(e)}\n"
+            f"Make sure the checkpoint is compatible with the model architecture."
+        )
 
 
 def remove_object(
@@ -62,7 +77,7 @@ def remove_object(
     mask: np.ndarray,
     lama_config: str = "./lama/configs/prediction/default.yaml",
     lama_ckpt: str = "./pretrained_models/big-lama",
-    device: str = "cuda"
+    device: str = None
 ) -> np.ndarray:
     """
     Remove an object from a 2D image using the LaMa inpainting model.
@@ -74,7 +89,8 @@ def remove_object(
               the region to inpaint and 0 indicates the region to keep
         lama_config: Path to LaMa model config file (default: ./lama/configs/prediction/default.yaml)
         lama_ckpt: Path to LaMa checkpoint directory (default: ./pretrained_models/big-lama)
-        device: Device to run inference on, "cuda" or "cpu" (default: "cuda")
+        device: Device to run inference on, "cuda" or "cpu". If None, automatically 
+                selects "cuda" if available, otherwise "cpu" (default: None)
     
     Returns:
         Inpainted image as numpy array with shape (H, W, 3) in RGB format,
@@ -105,9 +121,18 @@ def remove_object(
         raise ValueError(f"Image and mask must have same height and width. "
                         f"Got image {image.shape[:2]} and mask {mask.shape}")
     
-    # Normalize mask to [0, 255]
-    if np.max(mask) == 1:
-        mask = mask * 255
+    # Auto-select device if not specified
+    if device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    
+    # Normalize mask to [0, 255] range - handle various input formats
+    mask_max = np.max(mask)
+    if mask_max > 0:
+        # Scale to 0-255 range
+        mask = (mask.astype(np.float32) / mask_max * 255).astype(np.uint8)
+    else:
+        # Empty mask
+        return image.copy()
     
     # Convert to tensors and normalize
     img_tensor = torch.from_numpy(image).float().div(255.)

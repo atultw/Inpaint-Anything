@@ -10,15 +10,16 @@ omegaconf
 # Image processing
 opencv-python
 
-# LaMa model dependencies
-easydict==1.9.0
+# LaMa model dependencies (some versions pinned for compatibility)
+easydict
 scikit-image
-kornia==0.5.0
-hydra-core==1.1.0
-pytorch-lightning==1.2.9
+kornia>=0.5.0
+hydra-core>=1.1.0
+pytorch-lightning>=1.2.9
 
 # Additional utilities used by LaMa
-albumentations==0.5.2
+albumentations>=0.5.2
 tabulate
 tqdm
+
 
