@@ -73,6 +73,33 @@ Strip out all code and dependencies except for the ability to remove objects fro
 - Documented design choices
 - Passed security scan (0 vulnerabilities)
 
+## 6. Removed Training/Evaluation Bloat (Latest Update)
+Following user feedback about repository bloat, further cleaned up `lama/saicinpainting`:
+
+**Removed**:
+- Entire `evaluation/` directory (~3.3MB)
+  - Evaluation losses (LPIPS, SSIM, FID)
+  - Evaluation masks and utilities
+  - Refinement code
+- Training subdirectories:
+  - `training/data/` - Data loaders and augmentation (used webdataset, albumentations)
+  - `training/losses/` - Training loss implementations
+  - `training/visualizers/` - Training visualizers (used matplotlib)
+
+**Created minimal stubs**:
+- Stub implementations for imports required by trainer modules
+- These stubs raise NotImplementedError if training functions are called
+- Allows model loading to work without pulling in training dependencies
+
+**Dependency reduction**:
+- Removed: `webdataset`, `albumentations`, `hydra-core`, `tabulate`, `tensorflow`, `scikit-learn`, `joblib`, `matplotlib`, `timm`, `wldhx.yadisk-direct`, `packaging`
+- Kept essential: `torch`, `torchvision`, `numpy`, `pillow`, `opencv-python`, `scikit-image`, `kornia`, `pytorch-lightning`, `pandas`, `omegaconf`, `easydict`, `pyyaml`, `tqdm`
+
+**Results**:
+- Reduced from 52 to 26 Python files in `lama/saicinpainting`
+- Reduced size from ~3.7MB to 356KB (~90% reduction)
+- Eliminated dependencies on heavy packages like tensorflow, albumentations, webdataset
+
 ## File Structure After Changes
 ```
 Inpaint-Anything/
@@ -127,10 +154,13 @@ Image.fromarray(result).save("result.jpg")
 - Passed code security scan (0 vulnerabilities)
 
 ## Reduction in Complexity
-- **Before**: 1000+ files across multiple features
-- **After**: ~10 essential files focused on one task
-- **Dependencies**: Reduced from full feature set to minimal LaMa requirements
-- **Code**: From ~50KB of application code to ~7KB single-purpose module
+- **Before initial cleanup**: 1000+ files across multiple features
+- **After initial cleanup**: ~60 files focused on one task
+- **After bloat removal**: ~30 essential files
+- **Before**: Full feature set dependencies (SAM, Stable Diffusion, video processing, etc.)
+- **After**: Minimal LaMa inference requirements only
+- **Code size**: From ~50KB+ of application code to ~7KB single-purpose module
+- **lama/saicinpainting**: From ~3.7MB (52 files) to 356KB (26 files) - 90% reduction
 
 ## Benefits
 1. **Simplicity**: One function does one thing well
