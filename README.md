@@ -115,6 +115,12 @@ This implementation uses:
 - **LaMa (Large Mask Inpainting)**: A state-of-the-art inpainting model that can fill in large missing regions in images
 - The `big-lama` checkpoint is trained on high-resolution images and produces high-quality results
 
+### Design Notes
+
+- The module sets threading environment variables at import time to prevent conflicts in some environments. If you need different threading behavior, modify these settings at the top of `inpaint.py`.
+- The LaMa model code is loaded dynamically from the `lama/` subdirectory using sys.path manipulation. This is intentional to keep the code as a standalone module without requiring full package installation.
+- Default paths assume the model is in `./pretrained_models/big-lama`. You can override these with custom paths when calling `remove_object()`.
+
 ## Citation
 
 If you use this code in your research, please cite the original Inpaint Anything and LaMa papers:
