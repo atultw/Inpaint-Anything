@@ -27,6 +27,9 @@ os.environ['NUMEXPR_NUM_THREADS'] = '1'
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lama"))
 
+# Import inference-only functions from lama
+from saicinpainting.training.trainers import load_checkpoint
+
 # Minimal utility functions extracted from lama to avoid complex imports
 def move_to_device(obj, device):
     """Move tensors to device."""
@@ -49,27 +52,7 @@ def pad_tensor_to_modulo(img, mod):
     return F.pad(img, pad=(0, out_width - width, 0, out_height - height), mode='reflect')
 
 
-def load_checkpoint(config, checkpoint_path, strict=True, map_location='cpu'):
-    """Load model checkpoint from file."""
-    try:
-        from saicinpainting.training.trainers.default import DefaultInpaintingTrainingModule
-        model = DefaultInpaintingTrainingModule(config)
-        state = torch.load(checkpoint_path, map_location=map_location)
-        model.load_state_dict(state['state_dict'], strict=strict)
-        model.on_load_checkpoint(state)
-        return model
-    except FileNotFoundError:
-        raise FileNotFoundError(
-            f"Checkpoint file not found at: {checkpoint_path}\n"
-            f"Please download the big-lama model from:\n"
-            f"https://disk.yandex.ru/d/ouP6l8VJ0HpMZg\n"
-            f"and extract it to ./pretrained_models/big-lama"
-        )
-    except Exception as e:
-        raise RuntimeError(
-            f"Failed to load model checkpoint: {str(e)}\n"
-            f"Make sure the checkpoint is compatible with the model architecture."
-        )
+
 
 
 def remove_object(
@@ -155,9 +138,23 @@ def remove_object(
         predict_config.model.path, 'models',
         predict_config.model.checkpoint
     )
-    model = load_checkpoint(train_config, checkpoint_path, strict=False, map_location='cpu')
-    model.freeze()
-    model.to(device)
+    
+    try:
+        model = load_checkpoint(train_config, checkpoint_path, strict=False, map_location='cpu')
+        model.freeze()
+        model.to(device)
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            f"Checkpoint file not found at: {checkpoint_path}\n"
+            f"Please download the big-lama model from:\n"
+            f"https://disk.yandex.ru/d/ouP6l8VJ0HpMZg\n"
+            f"and extract it to ./pretrained_models/big-lama"
+        )
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to load model checkpoint: {str(e)}\n"
+            f"Make sure the checkpoint is compatible with the model architecture."
+        )
     
     # Prepare batch
     batch = {}
