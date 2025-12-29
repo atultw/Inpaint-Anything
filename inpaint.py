@@ -28,7 +28,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lama"))
 
 # Import inference-only functions from lama
-from saicinpainting.training.trainers import load_checkpoint
+from saicinpainting.training.modules import make_generator
 
 # Minimal utility functions extracted from lama to avoid complex imports
 def move_to_device(obj, device):
@@ -130,9 +130,6 @@ def remove_object(
     with open(train_config_path, 'r') as f:
         train_config = OmegaConf.create(yaml.safe_load(f))
     
-    train_config.training_model.predict_only = True
-    train_config.visualizer.kind = 'noop'
-    
     # Load model checkpoint
     checkpoint_path = os.path.join(
         predict_config.model.path, 'models',
@@ -140,9 +137,22 @@ def remove_object(
     )
     
     try:
-        model = load_checkpoint(train_config, checkpoint_path, strict=False, map_location='cpu')
-        model.freeze()
-        model.to(device)
+        # Create generator model directly (no trainers needed)
+        generator = make_generator(train_config, **train_config.generator)
+        
+        # Load checkpoint weights
+        state = torch.load(checkpoint_path, map_location='cpu')
+        
+        # Extract generator weights from checkpoint
+        generator_state = {}
+        for key, value in state['state_dict'].items():
+            if key.startswith('generator.'):
+                # Remove 'generator.' prefix
+                generator_state[key[10:]] = value
+        
+        generator.load_state_dict(generator_state, strict=False)
+        generator.eval()
+        generator.to(device)
     except FileNotFoundError:
         raise FileNotFoundError(
             f"Checkpoint file not found at: {checkpoint_path}\n"
@@ -156,23 +166,29 @@ def remove_object(
             f"Make sure the checkpoint is compatible with the model architecture."
         )
     
-    # Prepare batch
-    batch = {}
-    batch['image'] = img_tensor.permute(2, 0, 1).unsqueeze(0)
-    batch['mask'] = mask_tensor[None, None]
-    unpad_to_size = [batch['image'].shape[2], batch['image'].shape[3]]
+    # Prepare input
+    img = img_tensor.permute(2, 0, 1).unsqueeze(0)
+    mask = mask_tensor[None, None]
+    unpad_to_size = [img.shape[2], img.shape[3]]
     
     # Pad to modulo for model processing
     mod = 8
-    batch['image'] = pad_tensor_to_modulo(batch['image'], mod)
-    batch['mask'] = pad_tensor_to_modulo(batch['mask'], mod)
-    batch = move_to_device(batch, device)
-    batch['mask'] = (batch['mask'] > 0) * 1
+    img = pad_tensor_to_modulo(img, mod)
+    mask = pad_tensor_to_modulo(mask, mod)
+    img = move_to_device(img, device)
+    mask = move_to_device(mask, device)
+    mask = (mask > 0) * 1
+    
+    # Prepare masked input for generator
+    masked_img = img * (1 - mask)
+    masked_img = torch.cat([masked_img, mask], dim=1)  # Concatenate mask
     
     # Run inference
     with torch.no_grad():
-        batch = model(batch)
-        result = batch[predict_config.out_key][0].permute(1, 2, 0)
+        predicted = generator(masked_img)
+        # Composite: use prediction for masked area, original for unmasked
+        inpainted = mask * predicted + (1 - mask) * img
+        result = inpainted[0].permute(1, 2, 0)
         result = result.detach().cpu().numpy()
     
     # Unpad to original size
