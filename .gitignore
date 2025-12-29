@@ -1,5 +1,7 @@
 # Python byte code, etc.
 __pycache__/
+*.pyc
+*.pyo
 
 # C/C++ object files/libraries
 *.o
@@ -13,9 +15,19 @@ __pycache__/
 
 # pretrained_models
 pretrained_models/big-lama
-# pytracking/pretrain/
 *.pth
 
+# Test files
+test_*.png
+test_*.py
+*_test.py
+
+# Results
 results/*
+*.png
+*.jpg
+*.jpeg
+!README_images/*.png
+!README_images/*.jpg
 
 

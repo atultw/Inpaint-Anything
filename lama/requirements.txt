@@ -1,20 +1,15 @@
+# Minimal requirements for LaMa inference only
+# Most training/evaluation dependencies have been removed
+# For the full training environment, see the original LaMa repository:
+# https://github.com/advimman/lama
+
 pyyaml
-tqdm
 numpy
-easydict==1.9.0
+easydict
 scikit-image
-scikit-learn
 opencv-python
-tensorflow
-joblib
-matplotlib
+kornia
+pytorch-lightning
 pandas
-albumentations==0.5.2
-hydra-core==1.1.0
-pytorch-lightning==1.2.9
-tabulate
-kornia==0.5.0
-webdataset
-packaging
-wldhx.yadisk-direct
-timm
+omegaconf
+tqdm
