@@ -34,6 +34,16 @@ The directory structure should look like:
 
 ## Usage
 
+### Quick Example
+
+Run the included example script to see how the function works:
+
+```bash
+python example.py
+```
+
+This will create sample images and show you the expected output format.
+
 ### Basic Usage
 
 ```python

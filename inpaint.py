@@ -9,6 +9,8 @@ import os
 import yaml
 import numpy as np
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 from pathlib import Path
 from omegaconf import OmegaConf
 
@@ -23,9 +25,36 @@ os.environ['NUMEXPR_NUM_THREADS'] = '1'
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lama"))
 
-from saicinpainting.evaluation.utils import move_to_device
-from saicinpainting.training.trainers import load_checkpoint
-from saicinpainting.evaluation.data import pad_tensor_to_modulo
+# Minimal utility functions extracted from lama to avoid complex imports
+def move_to_device(obj, device):
+    """Move tensors to device."""
+    if isinstance(obj, nn.Module):
+        return obj.to(device)
+    if torch.is_tensor(obj):
+        return obj.to(device)
+    if isinstance(obj, (tuple, list)):
+        return [move_to_device(el, device) for el in obj]
+    if isinstance(obj, dict):
+        return {name: move_to_device(val, device) for name, val in obj.items()}
+    raise ValueError(f'Unexpected type {type(obj)}')
+
+
+def pad_tensor_to_modulo(img, mod):
+    """Pad tensor to be divisible by mod."""
+    batch_size, channels, height, width = img.shape
+    out_height = (height // mod + (1 if height % mod else 0)) * mod
+    out_width = (width // mod + (1 if width % mod else 0)) * mod
+    return F.pad(img, pad=(0, out_width - width, 0, out_height - height), mode='reflect')
+
+
+def load_checkpoint(config, checkpoint_path, strict=True, map_location='cpu'):
+    """Load model checkpoint from file."""
+    from saicinpainting.training.trainers.default import DefaultInpaintingTrainingModule
+    model = DefaultInpaintingTrainingModule(config)
+    state = torch.load(checkpoint_path, map_location=map_location)
+    model.load_state_dict(state['state_dict'], strict=strict)
+    model.on_load_checkpoint(state)
+    return model
 
 
 def remove_object(
